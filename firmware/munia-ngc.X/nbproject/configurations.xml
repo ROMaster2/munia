@@ -36,7 +36,7 @@
       <itemPath>asm_routines.asm</itemPath>
       <itemPath>isrs.inc</itemPath>
       <itemPath>capture-ngc.inc</itemPath>
-      <itemPath>C:/Users/Frank/Desktop/workspace/munia/firmware/munia-ngc.X/config_bits.c</itemPath>
+      <itemPath>C:/Git/munia/firmware/munia-ngc.X/config_bits.c</itemPath>
     </logicalFolder>
     <logicalFolder name="f1" displayName="USB" projectFiles="true">
       <itemPath>usb/usb_device.c</itemPath>

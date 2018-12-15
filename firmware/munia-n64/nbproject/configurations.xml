@@ -13,8 +13,8 @@
       <itemPath>circular_buffer.h</itemPath>
       <itemPath>memory.h</itemPath>
       <itemPath>usb_requests.h</itemPath>
-      <itemPath>C:/Users/Frank/Desktop/workspace/munia/firmware/munia-n64/config.h</itemPath>
-      <itemPath>C:/Users/Frank/Desktop/workspace/munia/firmware/munia-n64/asm_decl.h</itemPath>
+      <itemPath>C:/Git/munia/firmware/munia-n64/config.h</itemPath>
+      <itemPath>C:/Git/munia/firmware/munia-n64/asm_decl.h</itemPath>
     </logicalFolder>
     <logicalFolder name="LinkerScript"
                    displayName="Linker Files"

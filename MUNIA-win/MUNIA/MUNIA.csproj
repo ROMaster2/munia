@@ -129,6 +129,7 @@
     </Compile>
     <Compile Include="Properties\Annotations.cs" />
     <Compile Include="Skinning\NintendoSpyMapping.cs" />
+    <Compile Include="Util\AtomicDateTime.cs" />
     <Compile Include="Util\ColorPickerControl.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -169,6 +170,7 @@
     <Compile Include="Util\IniFile.cs" />
     <Compile Include="Skinning\NintendoSpySkin.cs" />
     <Compile Include="Skinning\PadpyghtSkin.cs" />
+    <Compile Include="Util\NTP.cs" />
     <Compile Include="Util\Range.cs" />
     <Compile Include="Util\TextureHelper.cs" />
     <Compile Include="Forms\MainForm.cs">
@@ -207,6 +209,7 @@
     <Compile Include="Forms\WindowSizePicker.Designer.cs">
       <DependentUpon>WindowSizePicker.cs</DependentUpon>
     </Compile>
+    <Compile Include="Util\TimeStamp.cs" />
     <EmbeddedResource Include="Forms\AboutBox.resx">
       <DependentUpon>AboutBox.cs</DependentUpon>
     </EmbeddedResource>
