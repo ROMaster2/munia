@@ -38,7 +38,7 @@ void n64_tasks() {
         // see if this packet is equal to the last transmitted one, and if so, discard it
         // also when in menu, menu_tasks will clear bit
         if (in_menu) return;
-        else if (memcmp(&joydata_n64_raw, &joydata_n64_last_raw, sizeof(n64_packet_t))) {
+        else if (true) {
             // dbgs("new packets.n64_avail\n");
             // new, changed packet available; unpack if faking and send over usb
             
