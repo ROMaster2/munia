@@ -15,6 +15,7 @@ namespace MUNIA.Controllers {
 		private ControllerState _taskDelayedState;
 		private ControllerState _realState;
 		private bool _realStateUpdated;
+		private PollingController _poller;
 
 		public enum DelayMethod { Queue, Task }
 
@@ -22,7 +23,13 @@ namespace MUNIA.Controllers {
 
 		public BufferedController(IController real, TimeSpan delay) {
 			_real = real;
-			_real.StateUpdated += RealOnStateUpdated;
+			if (real.RequiresPolling) {
+				_poller = new PollingController(real, 1000 / 60);
+				_poller.StateUpdated += RealOnStateUpdated;
+			}
+			else {
+				_real.StateUpdated += RealOnStateUpdated;
+			}
 			Delay = delay;
 		}
 
@@ -37,10 +44,8 @@ namespace MUNIA.Controllers {
 			}
 		}
 
-
-
 		private void RealOnStateUpdated(object sender, EventArgs eventArgs) {
-			var newState = _real.GetState();
+			var newState = (sender as IController).GetState();
 			if (Method == DelayMethod.Task) {
 				Task.Delay(Delay).ContinueWith(t => {
 					_taskDelayedState = newState;
@@ -86,29 +91,36 @@ namespace MUNIA.Controllers {
 		}
 
 		public string Name => _real.Name;
-		public bool IsActive => _real.IsActive;
+
 		public bool IsAvailable => _real.IsAvailable;
 		public string DevicePath => _real.DevicePath;
 
 		public ControllerType Type => _real.Type;
+
+		public bool RequiresPolling => false;
+
 		public bool Activate() { return _real.Activate(); }
 		public void Deactivate() { _real.Deactivate(); }
+		public bool IsAxisTrigger(int axisNum) => _real.IsAxisTrigger(axisNum);
 
 		public event EventHandler StateUpdated;
 		protected virtual void OnStateUpdated() { StateUpdated?.Invoke(this, EventArgs.Empty); }
+		public void Dispose() {
+			_real.Dispose();
+		}
 	}
 
 	public class TimedControllerState : ControllerState {
 		public TimeSpan Time { get; private set; }
-		public TimedControllerState() : base(new List<int>(), new List<bool>(), new List<Hat>()) { }
+		public TimedControllerState() : base(new List<double>(), new List<bool>(), new List<Hat>()) { }
 
-		public TimedControllerState(TimeSpan t, List<int> axes, List<bool> buttons, List<Hat> hats) : base(axes, buttons, hats) {
+		public TimedControllerState(TimeSpan t, List<double> axes, List<bool> buttons, List<Hat> hats) : base(axes, buttons, hats) {
 			Time = t;
 		}
 
 		internal bool Used = false;
 
-		public void SetState(TimeSpan elapsed, List<int> axes, List<bool> buttons, List<Hat> hats) {
+		public void SetState(TimeSpan elapsed, List<double> axes, List<bool> buttons, List<Hat> hats) {
 			Time = elapsed;
 			Axes.EnsureSize(axes.Count);
 			Buttons.EnsureSize(buttons.Count);

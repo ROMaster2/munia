@@ -1,20 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using MUNIA.Util;
 
 namespace MUNIA.Controllers {
-	public interface IController {
+	public interface IController : IDisposable {
 		ControllerState GetState();
 		event EventHandler StateUpdated;
 
-		bool IsActive { get; }
 		bool IsAvailable { get; }
 		string DevicePath { get; }
 		string Name { get; }
 		ControllerType Type { get; }
+		bool RequiresPolling { get; }
 
 		bool Activate();
 		void Deactivate();
+
+		bool IsAxisTrigger(int axisNum);
 	}
 
 	[Flags]
@@ -28,14 +31,14 @@ namespace MUNIA.Controllers {
 	}
 
 	public class ControllerState {
-
-		public ControllerState(List<int> axes, List<bool> buttons, List<Hat> hats) {
+		public ControllerState() : this(new List<double>(), new List<bool>(), new List<Hat>()) { }
+		public ControllerState(List<double> axes, List<bool> buttons, List<Hat> hats) {
 			Axes.AddRange(axes);
 			Buttons.AddRange(buttons);
 			Hats.AddRange(hats);
 		}
 
-		public List<int> Axes { get; } = new List<int>();
+		public List<double> Axes { get; } = new List<double>();
 		public List<bool> Buttons { get; } = new List<bool>();
 		public List<Hat> Hats { get; } = new List<Hat>(); // usually copied to buttons for simplicity
 
@@ -78,9 +81,9 @@ namespace MUNIA.Controllers {
 
 		public override int GetHashCode() {
 			unchecked {
-				var hashCode = Axes.GetHashCode();
-				hashCode = (hashCode*397) ^ Buttons.GetHashCode();
-				hashCode = (hashCode*397) ^ Hats.GetHashCode();
+				var hashCode = Axes.GetSequenceHashCode();
+				hashCode = (hashCode*397) ^ Buttons.GetSequenceHashCode();
+				hashCode = (hashCode*397) ^ Hats.GetSequenceHashCode();
 				return hashCode;
 			}
 		}

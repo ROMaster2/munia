@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -41,6 +42,8 @@ namespace MUNIA.Forms {
 			BuildMenu();
 			ActivateConfig(ConfigManager.GetActiveController(), ConfigManager.ActiveSkin);
 
+			ConfigManager.ControllerMappings.ListChanged += (o, args) => ScheduleBuildMenu();
+
 			Application.Idle += OnApplicationOnIdle;
 			if (!_skipUpdateCheck)
 				PerformUpdateCheck();
@@ -52,10 +55,17 @@ namespace MUNIA.Forms {
 		private async void ScheduleBuildMenu() {
 			// buffers multiple BuildMenu calls
 			if (_buildMenuTask == null) {
-				_buildMenuTask = Task.Delay(300).ContinueWith(t => Invoke((Action)delegate {
-					ConfigManager.LoadControllers();
-					BuildMenu();
-				}));
+				_buildMenuTask = Task.Delay(300).ContinueWith(t => {
+					if (IsHandleCreated && !IsDisposed) {
+						try {
+							BeginInvoke((Action)delegate {
+								ConfigManager.LoadControllers();
+								BuildMenu();
+							});
+						}
+						catch { }
+					}
+				});
 				await _buildMenuTask;
 				_buildMenuTask = null;
 			}
@@ -66,49 +76,74 @@ namespace MUNIA.Forms {
 			Debug.WriteLine("Building menu");
 
 			tsmiControllers.DropDownItems.Clear();
+			var allControllers = ConfigManager.Controllers.ToList();
 
-			// first show the controllers which are available
-			foreach (var ctrlr in ConfigManager.Controllers.OrderBy(c => c.Name)) {
-				var tsmiController = new ToolStripMenuItem(ctrlr.Name);
+			foreach (ControllerType controllerType in Enum.GetValues(typeof(ControllerType))) {
+				if (controllerType == ControllerType.None || controllerType == ControllerType.Unknown)
+					continue;
 
-				foreach (var skin in ConfigManager.Skins.Where(s => s.Controllers.Contains(ctrlr.Type))) {
-					var tsmiSkin = new ToolStripMenuItem($"{skin.Name}");
-					tsmiSkin.Enabled = true;
-					tsmiSkin.ToolTipText = skin.Path;
-					tsmiSkin.Click += (sender, args) => ActivateConfig(ctrlr, skin);
-					tsmiSkin.Image = GetSkinImage(skin);
-					tsmiController.DropDownItems.Add(tsmiSkin);
+				var controllers = new List<ToolStripMenuItem>();
+				// first show the controllers which are available
+				foreach (var ctrlr in allControllers.Where(c => c.Type == controllerType && c.IsAvailable).OrderBy(c => c.Name)) {
+					var tsmiController = new ToolStripMenuItem(ctrlr.Name);
+
+					var pref = new[] { typeof(SvgSkin), typeof(NintendoSpySkin), typeof(PadpyghtSkin) };
+					foreach (var skinGroup in ConfigManager.Skins
+						.Where(s => s.Controllers.Contains(ctrlr.Type))
+						.OrderBy(s => s.Name)
+						.GroupBy(s => s.GetType())
+						.OrderBy(g => Array.IndexOf(pref, g.Key))) {
+
+						foreach (var skin in skinGroup) {
+							var tsmiSkin = new ToolStripMenuItem($"{skin.Name}");
+							tsmiSkin.Enabled = true;
+							tsmiSkin.Click += (sender, args) => ActivateConfig(ctrlr, skin);
+							tsmiSkin.Image = GetSkinImage(skin);
+							HookHoverEvents(tsmiSkin, skin);
+							tsmiController.DropDownItems.Add(tsmiSkin);
+						}
+					}
+
+					tsmiController.Image = GetControllerImage(ctrlr);
+					controllers.Add(tsmiController);
 				}
 
-				tsmiController.Image = GetControllerImage(ctrlr);
-				tsmiControllers.DropDownItems.Add(tsmiController);
-			}
-
-			// then grab the controllers from skins that weren't found
-			var allControllerTypes = ConfigManager.Skins.SelectMany(s => s.Controllers).ToList();
-			var availableControllers = ConfigManager.Controllers.Select(c => c.Type).ToList();
-
-			if (availableControllers.Count() < allControllerTypes.Count())
-				tsmiControllers.DropDownItems.Add(new ToolStripSeparator());
-
-			// make 'empty'  menu entries for controllers that aren't detected,
-			// so that we can still look at the skins for them
-			foreach (var controller in allControllerTypes.Except(availableControllers).OrderBy(c => c.ToString())) {
-				var tsmiSkin = new ToolStripMenuItem(controller.ToString());
-
-				var preview = tsmiSkin.DropDownItems.Add("No controllers - preview only");
-				preview.Enabled = false;
-
-				foreach (var skin in ConfigManager.Skins.Where(s => s.Controllers.Contains(controller))) {
-					var skinPrev = tsmiSkin.DropDownItems.Add(skin.Name);
-					skinPrev.Enabled = true;
-					skinPrev.Click += (sender, args) => ActivateConfig(null, skin);
-					skinPrev.Image = GetSkinImage(skin);
-					tsmiSkin.Image = GetControllerImage(controller);
+				if (controllers.Count > 1) {
+					// make a menu item entry for this controller type
+					var tsmiControllerType = new ToolStripMenuItem(controllerType.ToString());
+					tsmiControllerType.Image = GetControllerImage(controllerType);
+					foreach (var c in controllers)
+						tsmiControllerType.DropDownItems.Add(c);
+					tsmiControllers.DropDownItems.Add(tsmiControllerType);
 				}
+				else if (controllers.Count == 1) {
+					// prefer the controller image over skin
+					controllers[0].Image = GetControllerImage(controllerType);
 
-				tsmiControllers.DropDownItems.Add(tsmiSkin);
+					// skip the dropdown item with only a single entry
+					tsmiControllers.DropDownItems.Add(controllers[0]);
+				}
+				else {
+					// allow skin to be previewed
+					var tsmiSkin = new ToolStripMenuItem(controllerType.ToString());
+					var preview = tsmiSkin.DropDownItems.Add("No controllers - preview only");
+					preview.Enabled = false;
+
+					foreach (var skin in ConfigManager.Skins.Where(s => s.Controllers.Contains(controllerType))) {
+						var skinPrev = tsmiSkin.DropDownItems.Add(skin.Name);
+						skinPrev.Enabled = true;
+						skinPrev.Click += (sender, args) => ActivateConfig(null, skin);
+						skinPrev.Image = GetSkinImage(skin);
+						HookHoverEvents(skinPrev, skin);
+					}
+				}
 			}
+
+			tsmiControllers.DropDownItems.Add(new ToolStripSeparator());
+			var tsmiMapGeneric = tsmiSkinFolders.DropDownItems.Add("Add controller mapping");
+			tsmiMapGeneric.Click += TsmiMapGenericOnClick;
+			tsmiMapGeneric.Image = Resources.x360;
+			tsmiControllers.DropDownItems.Add(tsmiMapGeneric);
 
 			string skinText = $"Loaded {ConfigManager.Skins.Count} skins ({ConfigManager.Controllers.Count} devices available)";
 			int numFail = ConfigManager.Skins.Count(s => s.LoadResult != SkinLoadResult.Ok);
@@ -117,23 +152,130 @@ namespace MUNIA.Forms {
 			lblSkins.Text = skinText;
 		}
 
+		#region Skin preview timer
+
+		private System.Threading.Timer _previewDelayTimer;
+		private PreviewParams _previewParams = new PreviewParams();
+		struct PreviewParams {
+			public ToolStripItem tsmi;
+			public Skin skin;
+		}
+		private void HookHoverEvents(ToolStripItem tsmi, Skin skin) {
+			if (_previewDelayTimer == null) {
+				_previewDelayTimer = new System.Threading.Timer(CreateSkinPreview);
+			}
+			tsmi.MouseMove += (sender, args) => {
+				_previewParams.tsmi = tsmi;
+				_previewParams.skin = skin;
+				_previewDelayTimer.Change(50, Timeout.Infinite); // slight delay
+			};
+			tsmi.MouseLeave += (sender, args) => EndSkinPreview();
+		}
+		#endregion
+
+		private void CreateSkinPreview(object state) {
+			BeginInvoke((Action)delegate {
+				HoverSkinPreview(_previewParams.tsmi, _previewParams.skin);
+			});
+		}
+
+
+		SkinPreviewWindow _activeSkinPreview;
+		private bool _busyRendering;
+		private void HoverSkinPreview(object sender, Skin skin) {
+			if (skin == null || skin.Path == _activeSkinPreview?.Skin?.Path || _busyRendering)
+				return;
+
+			try {
+				// create a clone of requested skin
+				var clonedSkin = Skin.Clone(skin);
+				if (clonedSkin.LoadResult != SkinLoadResult.Ok)
+					return;
+
+				_activeSkinPreview?.Skin?.Deactivate();
+				_activeSkinPreview?.Hide();
+
+				Point loc = this.PointToClient(Cursor.Position);
+				if (sender is ToolStripMenuItem tsmi) {
+					// make sure preview is at least to the right of the toolstrip item
+					int r = menu.Left;
+					int t = menu.Bottom;
+					ToolStripItem item = tsmi;
+					while (item != null) {
+						if (item.Owner != menu)
+							r += item.Bounds.Width;
+
+						// add vertical offset
+						var parent = item.OwnerItem as ToolStripMenuItem;
+						int i = 0;
+						while (parent != null && i < parent.DropDownItems.Count) {
+							if (parent.DropDownItems[i] == item) break;
+							t += parent.DropDownItems[i].Height;
+							i++;
+						}
+						item = parent;
+					}
+					loc = new Point(r, t);
+					loc.Offset(5, 5); // small margin
+				}
+
+				if (_activeSkinPreview == null) {
+					_activeSkinPreview = new SkinPreviewWindow(clonedSkin);
+					_activeSkinPreview.Location = loc;
+					Controls.Add(_activeSkinPreview);
+					_activeSkinPreview.BringToFront();
+				}
+				else {
+					_activeSkinPreview.Location = loc;
+					_activeSkinPreview.ChangeSkin(clonedSkin);
+				}
+
+				ControllerState state = new ControllerState();
+				skin.GetNumberOfElements(out int numButtons, out int numAxes);
+				state.Buttons.EnsureSize(numButtons);
+				state.Axes.EnsureSize(numAxes);
+				_activeSkinPreview.RenderSkin(state);
+
+				_activeSkinPreview.Show();
+			}
+			finally {
+				_busyRendering = false;
+			}
+		}
+		private void EndSkinPreview() {
+			if (_previewDelayTimer != null) {
+				_previewDelayTimer.Change(Timeout.Infinite, Timeout.Infinite); // disable
+			}
+			if (_activeSkinPreview != null) {
+				_activeSkinPreview?.Hide();
+				_activeSkinPreview.Dispose();
+				_activeSkinPreview = null;
+			}
+		}
+
+		private void tsmiControllers_DropDownClosed(object sender, EventArgs e) {
+			EndSkinPreview();
+		}
+
 		private static Image GetControllerImage(IController ctrlr) {
 			if (ctrlr is ArduinoController) return Resources.arduino;
+			if (ctrlr is MappedController m) return GetControllerImage(m.SourceController);
 			else return GetControllerImage(ctrlr.Type);
 		}
 
 		private static Image GetControllerImage(ControllerType ctrlrType) {
 			switch (ctrlrType) {
-				case ControllerType.SNES:
-					return Resources.snes;
-				case ControllerType.N64:
-					return Resources.n64;
-				case ControllerType.NGC:
-					return Resources.ngc;
-				case ControllerType.PS2:
-					return Resources.ps;
-				case ControllerType.Unknown:
-					return Resources.generic;
+			case ControllerType.SNES:
+				return Resources.snes;
+			case ControllerType.N64:
+				return Resources.n64;
+			case ControllerType.NGC:
+				return Resources.ngc;
+			case ControllerType.PS2:
+				return Resources.ps;
+			case ControllerType.Generic:
+			case ControllerType.XInput:
+				return Resources.generic;
 			}
 			return null;
 		}
@@ -146,6 +288,7 @@ namespace MUNIA.Forms {
 		}
 
 		private void ActivateConfig(IController ctrlr, Skin skin) {
+			EndSkinPreview();
 			if (skin?.LoadResult != SkinLoadResult.Ok) return;
 
 			skin.Activate();
@@ -156,10 +299,14 @@ namespace MUNIA.Forms {
 			else if (skin is NintendoSpySkin nspySkin && ConfigManager.SelectedNSpyBackgrounds.ContainsKey(nspySkin)) {
 				nspySkin.SelectBackground(ConfigManager.SelectedNSpyBackgrounds[nspySkin]);
 			}
-
+			
 			ConfigManager.ActiveSkin = skin;
 			ConfigManager.SetActiveController(ctrlr);
-			
+			if (ctrlr != null) {
+				skin.UpdateState(ctrlr.GetState()); // initial read
+				lblStatus.Text = $"Controller {ctrlr.Name} activated with skin {skin.Name}";
+			}
+
 			// find desired window size
 			if (ConfigManager.WindowSizes.ContainsKey(skin)) {
 				var wsz = ConfigManager.WindowSizes[skin];
@@ -168,13 +315,20 @@ namespace MUNIA.Forms {
 				else
 					ConfigManager.WindowSizes[skin] = glControl.Size;
 			}
+
 			ConfigManager.Save();
 			UpdateController();
 			Render();
 		}
 
+		private void OnControllerDetached(object sender, EventArgs e) {
+			if (sender is IController c && ConfigManager.GetActiveController() == c) {
+				c.Deactivate();
+				lblStatus.Text = $"Controller {c.Name ?? ""} detached";
+			}
+		}
+
 		private void glControl_Load(object sender, EventArgs e) {
-			glControl.MakeCurrent();
 			glControl.VSync = true;
 		}
 
@@ -195,11 +349,15 @@ namespace MUNIA.Forms {
 
 		private bool UpdateController() {
 			if (ConfigManager.ActiveSkin == null) return false;
-			return ConfigManager.ActiveSkin.UpdateState(ConfigManager.GetActiveController());
+			var activeController = ConfigManager.GetActiveController();
+			if (activeController == null) return false;
+			return ConfigManager.ActiveSkin.UpdateState(activeController);
 		}
 
 
 		private void Render() {
+			if (ConfigManager.ActiveSkin == null) return;
+
 			glControl.MakeCurrent();
 			GL.ClearColor(Color.FromArgb(0, ConfigManager.BackgroundColor));
 			GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -211,7 +369,7 @@ namespace MUNIA.Forms {
 			GL.LoadIdentity();
 			GL.Ortho(0, glControl.Width, glControl.Height, 0, 0.0, 4.0);
 
-			ConfigManager.ActiveSkin?.Render(glControl.Width, glControl.Height);
+			ConfigManager.ActiveSkin.Render(glControl.Width, glControl.Height);
 			glControl.SwapBuffers();
 		}
 
@@ -259,14 +417,37 @@ namespace MUNIA.Forms {
 		private void OnDeviceArrival(object sender, UsbNotificationEventArgs args) {
 			ScheduleBuildMenu();
 			// see if this was our active controller and we can reactivate it
+			if (!string.IsNullOrEmpty(args.Name))
+				ReactivateController(args.Name);
+		}
+
+		private void ReactivateController(string devicePath) {
 			var ac = ConfigManager.GetActiveController();
-			if (string.Compare(ac?.DevicePath, args.Name, StringComparison.OrdinalIgnoreCase) == 0) {
-				ac?.Activate();
+			// use string contains to also match mapped controllers
+			bool reactivated = false;
+			if (ac != null) {
+				if (ac.DevicePath.ToLowerInvariant().Contains(devicePath.ToLowerInvariant())) {
+					reactivated = ac.Activate();
+				}
+				else if (devicePath.Contains("IG_") && (
+							ac.Type == ControllerType.XInput ||
+							(ac is MappedController mc && mc.SourceController is XInputController))) {
+					// xinput device, maybe it can be activated
+					reactivated = ac.Activate();
+				}
+			}
+			if (reactivated) {
+				var ctrlr = ConfigManager.GetActiveController();
+				var skin = ConfigManager.ActiveSkin;
+				lblStatus.Text = $"Controller {ctrlr.Name} reactivated with skin {skin.Name}";
 			}
 		}
 
 		private void OnDeviceRemoval(object sender, UsbNotificationEventArgs args) {
 			ScheduleBuildMenu();
+			// if active device is no longer available, deactivate the controller for it
+			var c = ConfigManager.GetActiveController();
+			if (c != null && !c.IsAvailable) c.Deactivate();
 		}
 
 		#region update checking/performing
@@ -298,7 +479,7 @@ namespace MUNIA.Forms {
 				if (msgBox) MessageBox.Show("You are already using the latest version available", "Already latest", MessageBoxButtons.OK, MessageBoxIcon.Information);
 				UpdateStatus("already latest version", 100);
 				Task.Delay(2000).ContinueWith(task => {
-					if (InvokeRequired && IsHandleCreated) Invoke((Action)delegate { pbProgress.Visible = false; });
+					if (InvokeRequired && IsHandleCreated) BeginInvoke((Action)delegate { pbProgress.Visible = false; });
 				});
 			};
 			uc.Connected += (o, e) => UpdateStatus("connected", 10);
@@ -307,7 +488,7 @@ namespace MUNIA.Forms {
 			uc.UpdateCheckFailed += (o, e) => {
 				UpdateStatus("update check failed", 100);
 				if (msgBox) MessageBox.Show("Update check failed", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-				Task.Delay(2000).ContinueWith(task => Invoke((Action)delegate { pbProgress.Visible = false; }));
+				Task.Delay(2000).ContinueWith(task => BeginInvoke((Action)delegate { pbProgress.Visible = false; }));
 			};
 			uc.UpdateAvailable += (o, e) => {
 				UpdateStatus("update available", 100);
@@ -352,6 +533,8 @@ namespace MUNIA.Forms {
 		#endregion
 
 		private void MainForm_FormClosing(object sender, FormClosingEventArgs e) {
+			foreach (var ctrlr in ConfigManager.Controllers.ToList())
+				ctrlr.Dispose();
 			ConfigManager.Save();
 		}
 
@@ -453,7 +636,7 @@ namespace MUNIA.Forms {
 
 		private void tsmiManageThemes_Click(object sender, EventArgs e) {
 			if (ConfigManager.ActiveSkin is SvgSkin svg) {
-				var managerForm = new RemapManagerForm(svg, ConfigManager.SelectedRemaps[svg],
+				var managerForm = new SkinRemapManagerForm(svg, ConfigManager.SelectedRemaps[svg],
 					ConfigManager.AvailableRemaps[svg.Path]);
 
 				managerForm.SelectedRemapChanged += (o, args) =>
@@ -464,33 +647,47 @@ namespace MUNIA.Forms {
 				SelectRemap(managerForm.SelectedRemap);
 			}
 		}
-		
+
+		private void TsmiMapGenericOnClick(object sender, EventArgs e) {
+			new ControllerMapperForm().ShowDialog();
+		}
+
 		private void testControllerToolStripMenuItem_Click(object sender, EventArgs e) {
-			new GamepadTester().ShowDialog();
+			new GamepadTesterForm().ShowDialog();
 		}
 
 		private void popup_Opening(object sender, System.ComponentModel.CancelEventArgs e) {
 			tsmiManageThemes.Enabled = ConfigManager.ActiveSkin is SvgSkin;
 
 			// populate the available themes list
-			tsmiApplyTheme.DropDownItems.Clear();
+			tsmiApplySkinTheme.DropDownItems.Clear();
+			tsmiApplyCustomTheme.DropDownItems.Clear();
 			if (ConfigManager.ActiveSkin is SvgSkin svg) {
-				var remaps = ConfigManager.AvailableRemaps[svg.Path];
-				tsmiApplyTheme.Enabled = remaps.Any(r=>!r.IsSkinDefault);
-
 				var selectedRemap = ConfigManager.SelectedRemaps[svg];
-				foreach (var remap in ConfigManager.AvailableRemaps[svg.Path]) {
-					var tsmiSkin = new ToolStripMenuItem(remap.Name, null, (_,__) => SelectRemap(remap));
 
+				IList<ColorRemap> remaps = svg.EmbeddedRemaps;
+				tsmiApplySkinTheme.Enabled = remaps.Any();
+				foreach (var remap in remaps) {
+					var tsmiSkin = new ToolStripMenuItem(remap.Name, null, (_, __) => SelectRemap(remap));
 					// put a checkmark in front if this is the selected remap
 					tsmiSkin.Checked = remap.Equals(selectedRemap);
+					tsmiSkin.Click += (o, args) => svg.ApplyRemap(remap);
+					tsmiApplySkinTheme.DropDownItems.Add(tsmiSkin);
+				}
 
-					tsmiApplyTheme.DropDownItems.Add(tsmiSkin);
+				remaps = ConfigManager.AvailableRemaps[svg.Path];
+				tsmiApplyCustomTheme.Enabled = remaps.Any(r => !r.IsSkinDefault);
+				foreach (var remap in ConfigManager.AvailableRemaps[svg.Path].Where(r => !r.IsSkinDefault)) {
+					var tsmiSkin = new ToolStripMenuItem(remap.Name, null, (_, __) => SelectRemap(remap));
+					// put a checkmark in front if this is the selected remap
+					tsmiSkin.Checked = remap.Equals(selectedRemap);
+					tsmiSkin.Click += (o, args) => svg.ApplyRemap(remap);
+					tsmiApplyCustomTheme.DropDownItems.Add(tsmiSkin);
 				}
 				tsmiBackground.Visible = true;
 			}
 			else {
-				tsmiApplyTheme.Enabled = false;
+				tsmiApplyCustomTheme.Enabled = false;
 				tsmiBackground.Visible = false;
 			}
 
@@ -511,7 +708,7 @@ namespace MUNIA.Forms {
 		}
 
 		private void SelectRemap(ColorRemap remap) {
-			if (remap != null && ConfigManager.ActiveSkin is SvgSkin svg) {
+			if (ConfigManager.ActiveSkin is SvgSkin svg) {
 				svg.ApplyRemap(remap);
 				ConfigManager.SelectedRemaps[svg] = remap;
 				// force redraw of the base

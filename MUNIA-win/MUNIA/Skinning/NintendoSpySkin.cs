@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Xml;
+using MUNIA.Controllers;
 using MUNIA.Util;
 using OpenTK.Graphics.OpenGL;
 
@@ -13,10 +14,10 @@ namespace MUNIA.Skinning {
 		public List<Stick> Sticks = new List<Stick>();
 		public List<Trigger> Triggers = new List<Trigger>();
 		public List<Detail> Details = new List<Detail>();
-		public Dictionary<string, NspyBackground> Backgrounds = new Dictionary<string, NspyBackground>();
-		public NspyBackground SelectedBackground { get; private set; }
+		public Dictionary<string, NSpyBackground> Backgrounds = new Dictionary<string, NSpyBackground>();
+		public NSpyBackground SelectedBackground { get; private set; }
 		private Size _destSize;
-		internal protected string WorkingDir;
+		protected internal string WorkingDir;
 
 		public void Load(string xmlPath) {
 			this.Path = xmlPath;
@@ -42,7 +43,7 @@ namespace MUNIA.Skinning {
 				foreach (XmlNode xnode in xroot) {
 					// read the background
 					if (xnode.Name == "background") {
-						var bg = new NspyBackground();
+						var bg = new NSpyBackground();
 						bg.Name = xnode.Attributes["name"].Value;
 						bg.ImagePath = System.IO.Path.Combine(WorkingDir, xnode.Attributes["image"].Value);
 						Backgrounds[bg.Name] = bg;
@@ -74,7 +75,7 @@ namespace MUNIA.Skinning {
 
 						// nspy reverse/inverse is slightly different, mapping below makes rendering identical to SvgSkin
 						trigg.Orientation = direction == "left" || direction == "right" ? TriggerOrientation.Horizontal : TriggerOrientation.Vertical;
-						
+
 						// our reverse means filling from left-to-right or bottom-to-top
 						trigg.Reverse = direction == "left" || direction == "up";
 
@@ -124,22 +125,22 @@ namespace MUNIA.Skinning {
 		public override void Activate() {
 			// texture resources are created here
 			foreach (var bg in Backgrounds)
-				bg.Value.LoadFromBitmap(bg.Value.ImagePath);
+				bg.Value.LoadFromBitmap();
 
 			Buttons.ForEach(b => {
-				b.LoadFromBitmap(b.ImagePath);
+				b.LoadFromBitmap();
 			});
 			RangeButtons.ForEach(b => {
-				b.LoadFromBitmap(b.ImagePath);
+				b.LoadFromBitmap();
 			});
 			Sticks.ForEach(s => {
-				s.LoadFromBitmap(s.ImagePath);
+				s.LoadFromBitmap();
 			});
 			Triggers.ForEach(t => {
-				t.LoadFromBitmap(t.ImagePath);
+				t.LoadFromBitmap();
 			});
 			Details.ForEach(d => {
-				d.LoadFromBitmap(d.ImagePath);
+				d.LoadFromBitmap();
 			});
 		}
 
@@ -209,14 +210,16 @@ namespace MUNIA.Skinning {
 		}
 
 		private void RenderButton(Button btn) {
-			bool pressed = State != null && State.Buttons[btn.Id];
-			if (pressed && btn.Texture >= 0) {
-				GL.BindTexture(TextureTarget.Texture2D, btn.Texture);
-				TextureHelper.RenderTexture(Scale(btn.Location, btn.Size));
+			if (btn.Id < State.Buttons.Count) {
+				bool pressed = State != null && State.Buttons[btn.Id];
+				if (pressed && btn.Texture >= 0) {
+					GL.BindTexture(TextureTarget.Texture2D, btn.Texture);
+					TextureHelper.RenderTexture(Scale(btn.Location, btn.Size));
+				}
 			}
 		}
 		private void RenderRangeButton(RangeButton btn) {
-			if (State == null || btn.Texture < 0) return;
+			if (State == null || btn.Texture < 0 || State.Axes.Count <= btn.Id) return;
 			double val = State.Axes[btn.Id] * 128.0;
 			if (btn.VisibleFrom <= val && val <= btn.VisibleTo) {
 				GL.BindTexture(TextureTarget.Texture2D, btn.Texture);
@@ -227,10 +230,10 @@ namespace MUNIA.Skinning {
 		private void RenderStick(Stick stick) {
 			if (stick.Texture >= 0) {
 				Point loc = stick.Location;
-				if (stick.HorizontalAxis != -1)
-					loc.X += (int)(State.Axes[stick.HorizontalAxis] / 128.0 * stick.XRange + 0.5) * (stick.XReverse ? -1 : 1);
-				if (stick.VerticalAxis != -1)
-					loc.Y += (int)(State.Axes[stick.VerticalAxis] / 128.0 * stick.YRange + 0.5) * (stick.YReverse ? -1 : 1);
+				if (stick.HorizontalAxis != -1 && State.Axes.Count > stick.HorizontalAxis)
+					loc.X += (int)(State.Axes[stick.HorizontalAxis] * stick.XRange + 0.5) * (stick.XReverse ? -1 : 1);
+				if (stick.VerticalAxis != -1 && State.Axes.Count > stick.VerticalAxis)
+					loc.Y += (int)(State.Axes[stick.VerticalAxis] * stick.YRange + 0.5) * (stick.YReverse ? -1 : 1);
 				GL.BindTexture(TextureTarget.Texture2D, stick.Texture);
 				TextureHelper.RenderTexture(Scale(loc, stick.Size));
 			}
@@ -239,7 +242,10 @@ namespace MUNIA.Skinning {
 		private void RenderTrigger(Trigger trigger) {
 			if (trigger.Texture >= 0) {
 				var r = Scale(trigger.Location, trigger.Size);
-				float o = State?.Axes[trigger.Id] ?? 0f;
+				float o = 0.0f;
+				if (State != null && State.Axes.Count > trigger.Id)
+					o = (float)State.Axes[trigger.Id];
+				o *= 256.0f;
 				o = trigger.Range.Clip(o);
 
 				RectangleF crop = new RectangleF(PointF.Empty, new SizeF(1.0f, 1.0f));
@@ -283,7 +289,7 @@ namespace MUNIA.Skinning {
 			dest.Height = size.Height * scaleY;
 			return dest;
 		}
-		
+
 		public class ControllerItem {
 			public int Id; // stick, button or trigger Id on controller
 			public int Texture = -1;
@@ -291,7 +297,7 @@ namespace MUNIA.Skinning {
 			public Size Size = Size.Empty;
 			public string ImagePath;
 			public List<string> IgnoredInSkins = new List<string>();
-			public void LoadFromBitmap(string bitmapPath) {
+			public void LoadFromBitmap() {
 				using (var bm = Bitmap.FromFile(ImagePath) as Bitmap) {
 					Texture = TextureHelper.CreateTexture(bm);
 					// if set, should scale to given dimension(s), else use img dimensions
@@ -315,10 +321,10 @@ namespace MUNIA.Skinning {
 				}
 				ImagePath = System.IO.Path.Combine(skin.WorkingDir, xnode.Attributes["image"].Value);
 			}
+		}
+		public override string ToString() => Name;
 
-		}
-		public class Button : ControllerItem {
-		}
+		public class Button : ControllerItem { }
 
 		public class RangeButton : ControllerItem {
 			// simple button, but read from analog axis;
@@ -351,13 +357,55 @@ namespace MUNIA.Skinning {
 			public Range Range = new Range(0, 255);
 		}
 
-		public class NspyBackground : ControllerItem {
+		public class NSpyBackground : ControllerItem {
 			public string Name;
 		}
 
 		public void SelectBackground(string backgroundName) {
 			SelectedBackground = Backgrounds[backgroundName];
 		}
+
+		public override void GetNumberOfElements(out int numButtons, out int numAxes) {
+			var buttons = Buttons.Where(b => b.Id != -1).Select(b => b.Id).Distinct();
+			numButtons = Math.Max(buttons.DefaultIfEmpty(int.MinValue).Max() + 1, buttons.Count());
+
+			var axes = Triggers.Where(t => t.Id != -1).Select(t => t.Id)
+				.Union(Sticks.Where(s => s.HorizontalAxis != -1).Select(s => s.HorizontalAxis))
+				.Union(Sticks.Where(s => s.VerticalAxis != -1).Select(s => s.VerticalAxis))
+				.Distinct();
+			numAxes = Math.Max(axes.DefaultIfEmpty(int.MinValue).Max() + 1, axes.Count());
+		}
+
+		public override bool GetElementsAtLocation(Point location, Size skinSize,
+			List<ControllerMapping.Button> buttons, List<ControllerMapping.Axis[]> axes) {
+
+			if (_destSize != skinSize)
+				return false;
+
+			foreach (var btn in Buttons) {
+				if (Scale(btn.Location, btn.Size).Contains(location))
+					buttons.Add((ControllerMapping.Button)btn.Id);
+			}
+			foreach (var btn in RangeButtons) {
+				if (Scale(btn.Location, btn.Size).Contains(location))
+					buttons.Add((ControllerMapping.Button)btn.Id);
+			}
+			foreach (var trig in Triggers) {
+				if (Scale(trig.Location, trig.Size).Contains(location))
+					axes.Add(new[] { (ControllerMapping.Axis)trig.Id });
+			}
+			foreach (var stick in Sticks) {
+				if (Scale(stick.Location, stick.Size).Contains(location)) {
+					axes.Add(new[] {
+						(ControllerMapping.Axis)stick.HorizontalAxis,
+						(ControllerMapping.Axis)stick.VerticalAxis
+					});
+				}
+			}
+
+			return true;
+		}
+
 	}
 
 }

@@ -1,18 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using MUNIA.Controllers;
 
 namespace MUNIA.Skinning {
-
-	public class ControllerMap {
-		public Dictionary<string, int> ButtonMap = new Dictionary<string, int>();
-		public Dictionary<string, int> AxisMap = new Dictionary<string, int>();
-	}
-
+	
 	static class NintendoSpyMapping {
+		public class ControllerMap {
+			public Dictionary<string, int> ButtonMap = new Dictionary<string, int>();
+			public Dictionary<string, int> AxisMap = new Dictionary<string, int>();
+		}
 
 		public static readonly Dictionary<string, ControllerType> TypeMap = new Dictionary<string, ControllerType> {
 			["n64"] = ControllerType.N64,
@@ -20,7 +15,6 @@ namespace MUNIA.Skinning {
 			["snes"] = ControllerType.SNES,
 			// ["pc360"] = ControllerType.Unknown, // todo
 			// ["classiccontroller"] = ControllerType.ClassicController, // todo
-			// ["generic"] = ControllerType.Generic, // todo.. maybe?
 		};
 
 		// mapping between NintendoSpy and MUNIA button/axes indices

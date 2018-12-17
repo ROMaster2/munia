@@ -41,10 +41,12 @@ namespace MUNIA.Controllers {
             _buttons[12] = hat.HasFlag(Hat.Left);
             _buttons[13] = hat.HasFlag(Hat.Right);
 
-			_axes[0] = (sbyte)packet[2];
-			_axes[1] = -(sbyte)packet[3];
+			_axes[0] = (sbyte)packet[2] / 128.0;
+			_axes[1] = -(sbyte)packet[3] / 128.0;
 
 			return true;
 		}
+
+		public override bool IsAxisTrigger(int axisNum) => false;
 	}
 }

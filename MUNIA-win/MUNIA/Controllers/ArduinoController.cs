@@ -11,21 +11,23 @@ namespace MUNIA.Controllers {
 			Port = new SerialPort(port.Name, 115200);
 			Port.DataReceived += OnDataReceived;
 		}
-
-		protected List<int> _axes { get; } = new List<int>();
+		
+		protected List<double> _axes { get; } = new List<double>();
 		protected List<bool> _buttons { get; } = new List<bool>();
 		protected List<Hat> _hats { get; } = new List<Hat>();
 
-		public bool IsActive { get; set; }
 		public bool IsAvailable { get; }
 		public string DevicePath => PortInfo.Name;
 
 		public string Name => "Arduino " + Type;
 		public abstract ControllerType Type { get; }
+		public bool RequiresPolling => false;
+
 		public SerialPortInfo PortInfo { get; set; }
 		protected SerialPort Port;
 
 		public ControllerState GetState() => new ControllerState(_axes, _buttons, _hats);
+		public abstract bool IsAxisTrigger(int axisNum);
 
 		public bool Activate() {
 			try {
@@ -40,6 +42,7 @@ namespace MUNIA.Controllers {
 		public void Deactivate() {
 			Port?.Close();
 		}
+
 
 		private void OnDataReceived(object sender, SerialDataReceivedEventArgs args) {
 			byte[] buff = new byte[512];
@@ -94,6 +97,7 @@ namespace MUNIA.Controllers {
 			}
 			return ret;
 		}
+
 		public static ArduinoController CreateDevice(SerialPortInfo port, ControllerType type) {
 			switch (type) {
 			case ControllerType.SNES:
@@ -104,6 +108,11 @@ namespace MUNIA.Controllers {
 				return new ArduinoNgc(port);
 			}
 			return null;
+		}
+
+		public void Dispose() {
+			Port?.Dispose();
+			Port = null;
 		}
 	}
 }

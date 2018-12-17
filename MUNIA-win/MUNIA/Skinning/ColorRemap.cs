@@ -14,7 +14,7 @@ namespace MUNIA.Skinning {
 		private string _name;
 
 		private List<GroupedSvgElems> _groups = new List<GroupedSvgElems>();
-		public readonly bool IsSkinDefault;
+		public bool IsSkinDefault;
 		public Guid UUID { get; private set; } = Guid.Empty;
 
 		public List<GroupedSvgElems> Groups => _groups;
@@ -84,10 +84,31 @@ namespace MUNIA.Skinning {
 			ret.UUID = Guid.Parse(xRemap.Attributes["UUID"].Value);
 
 			foreach (XmlNode x in xRemap.ChildNodes) {
-				string id = x.Attributes["id"].Value;
+				string id;
+				if (x.Attributes["tgt-id"] != null) id = x.Attributes["tgt-id"].Value;
+				else if (x.Attributes["id"] != null) id = x.Attributes["id"].Value; // legacy but can only contain one remap per skin if using id
+				else continue;
+
 				Color fill = ColorTranslator.FromHtml(x.Attributes["fill"].Value);
 				Color stroke = ColorTranslator.FromHtml(x.Attributes["stroke"].Value);
 
+				ret.Elements[id] = Tuple.Create(fill, stroke);
+			}
+			return ret;
+		}
+		public static ColorRemap LoadFrom(SvgElement xRemap) {
+			ColorRemap ret = new ColorRemap();
+			ret.Name = xRemap.CustomAttributes["name"];
+			ret.UUID = Guid.Parse(xRemap.CustomAttributes["UUID"]);
+
+			foreach (SvgElement x in xRemap.Children) {
+				string id;
+				if (x.CustomAttributes.ContainsKey("tgt-id")) id = x.CustomAttributes["tgt-id"];
+				else id = x.ID; // legacy thing
+
+				Color fill = new Color(), stroke = new Color();
+				if (x.Fill is SvgColourServer cf) fill = cf.Colour;
+				if (x.Stroke is SvgColourServer cs) stroke = cs.Colour;
 				ret.Elements[id] = Tuple.Create(fill, stroke);
 			}
 			return ret;
@@ -104,7 +125,7 @@ namespace MUNIA.Skinning {
 
 			foreach (var kvp in Elements) {
 				xw.WriteStartElement("entry");
-				xw.WriteAttributeString("id", kvp.Key);
+				xw.WriteAttributeString("tgt-id", kvp.Key);
 				xw.WriteAttributeString("fill", kvp.Value.Item1.ToHexValue());
 				xw.WriteAttributeString("stroke", kvp.Value.Item2.ToHexValue());
 				xw.WriteEndElement(); // entry
@@ -118,6 +139,7 @@ namespace MUNIA.Skinning {
 
 			foreach (var kvp in this.Elements)
 				ret.Elements[kvp.Key] = kvp.Value;
+			ret.IsSkinDefault = false;
 
 			return ret;
 		}
@@ -153,7 +175,7 @@ namespace MUNIA.Skinning {
 		}
 
 		public override string ToString() {
-			return $"{Name}";
+			return $"{(IsSkinDefault?"[D] ":"")}{Name}";
 		}
 	}
 

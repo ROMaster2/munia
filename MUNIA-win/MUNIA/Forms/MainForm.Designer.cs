@@ -55,8 +55,9 @@ namespace MUNIA.Forms {
 			this.tsmiBackGroundColor = new System.Windows.Forms.ToolStripMenuItem();
 			this.tsmiBackgroundTransparent = new System.Windows.Forms.ToolStripMenuItem();
 			this.tsmiBackgroundNSpy = new System.Windows.Forms.ToolStripMenuItem();
-			this.tsmiColorRemapping = new System.Windows.Forms.ToolStripMenuItem();
-			this.tsmiApplyTheme = new System.Windows.Forms.ToolStripMenuItem();
+			this.tsmiSkinTheme = new System.Windows.Forms.ToolStripMenuItem();
+			this.tsmiApplySkinTheme = new System.Windows.Forms.ToolStripMenuItem();
+			this.tsmiApplyCustomTheme = new System.Windows.Forms.ToolStripMenuItem();
 			this.tsmiManageThemes = new System.Windows.Forms.ToolStripMenuItem();
 			this.menu.SuspendLayout();
 			this.status.SuspendLayout();
@@ -81,6 +82,7 @@ namespace MUNIA.Forms {
 			this.tsmiControllers.Name = "tsmiControllers";
 			this.tsmiControllers.Size = new System.Drawing.Size(104, 20);
 			this.tsmiControllers.Text = "&Select controller";
+			this.tsmiControllers.DropDownClosed += new System.EventHandler(this.tsmiControllers_DropDownClosed);
 			// 
 			// tsmiOptions
 			// 
@@ -239,16 +241,17 @@ namespace MUNIA.Forms {
 			// 
 			// tooltip
 			// 
-			this.tooltip.AutoPopDelay = 3000;
-			this.tooltip.InitialDelay = 500;
-			this.tooltip.ReshowDelay = 100;
+			this.tooltip.AutomaticDelay = 100;
+			this.tooltip.AutoPopDelay = 15000;
+			this.tooltip.InitialDelay = 100;
+			this.tooltip.ReshowDelay = 20;
 			// 
 			// popup
 			// 
 			this.popup.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.tsmiBackground,
             this.tsmiBackgroundNSpy,
-            this.tsmiColorRemapping});
+            this.tsmiSkinTheme});
 			this.popup.Name = "popup";
 			this.popup.Size = new System.Drawing.Size(181, 92);
 			this.popup.Opening += new System.ComponentModel.CancelEventHandler(this.popup_Opening);
@@ -287,25 +290,32 @@ namespace MUNIA.Forms {
 			this.tsmiBackgroundNSpy.Size = new System.Drawing.Size(180, 22);
 			this.tsmiBackgroundNSpy.Text = "&Background";
 			// 
-			// tsmiColorRemapping
+			// tsmiSkinTheme
 			// 
-			this.tsmiColorRemapping.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.tsmiApplyTheme,
+			this.tsmiSkinTheme.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.tsmiApplySkinTheme,
+            this.tsmiApplyCustomTheme,
             this.tsmiManageThemes});
-			this.tsmiColorRemapping.Name = "tsmiColorRemapping";
-			this.tsmiColorRemapping.Size = new System.Drawing.Size(180, 22);
-			this.tsmiColorRemapping.Text = "Color &remapping";
+			this.tsmiSkinTheme.Name = "tsmiSkinTheme";
+			this.tsmiSkinTheme.Size = new System.Drawing.Size(180, 22);
+			this.tsmiSkinTheme.Text = "Skin &theme";
 			// 
-			// tsmiApplyTheme
+			// tsmiApplySkinTheme
 			// 
-			this.tsmiApplyTheme.Name = "tsmiApplyTheme";
-			this.tsmiApplyTheme.Size = new System.Drawing.Size(180, 22);
-			this.tsmiApplyTheme.Text = "&Apply theme";
+			this.tsmiApplySkinTheme.Name = "tsmiApplySkinTheme";
+			this.tsmiApplySkinTheme.Size = new System.Drawing.Size(185, 22);
+			this.tsmiApplySkinTheme.Text = "&Apply skin theme";
+			// 
+			// tsmiApplyCustomTheme
+			// 
+			this.tsmiApplyCustomTheme.Name = "tsmiApplyCustomTheme";
+			this.tsmiApplyCustomTheme.Size = new System.Drawing.Size(185, 22);
+			this.tsmiApplyCustomTheme.Text = "Apply &custom theme";
 			// 
 			// tsmiManageThemes
 			// 
 			this.tsmiManageThemes.Name = "tsmiManageThemes";
-			this.tsmiManageThemes.Size = new System.Drawing.Size(180, 22);
+			this.tsmiManageThemes.Size = new System.Drawing.Size(185, 22);
 			this.tsmiManageThemes.Text = "&Manage themes";
 			this.tsmiManageThemes.Click += new System.EventHandler(this.tsmiManageThemes_Click);
 			// 
@@ -354,9 +364,9 @@ namespace MUNIA.Forms {
 		private System.Windows.Forms.ToolTip tooltip;
 		private System.Windows.Forms.ContextMenuStrip popup;
 		private System.Windows.Forms.ToolStripMenuItem tsmiBackgroundNSpy;
-		private System.Windows.Forms.ToolStripMenuItem tsmiColorRemapping;
+		private System.Windows.Forms.ToolStripMenuItem tsmiSkinTheme;
 		private System.Windows.Forms.ToolStripMenuItem tsmiManageThemes;
-		private System.Windows.Forms.ToolStripMenuItem tsmiApplyTheme;
+		private System.Windows.Forms.ToolStripMenuItem tsmiApplyCustomTheme;
 		private System.Windows.Forms.ToolStripMenuItem tsmiSkinFolders;
 		private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
 		private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
@@ -365,6 +375,7 @@ namespace MUNIA.Forms {
 		private System.Windows.Forms.ToolStripMenuItem tsmiBackGroundColor;
 		private System.Windows.Forms.ToolStripMenuItem tsmiBackgroundTransparent;
 		private System.Windows.Forms.ToolStripMenuItem tsmiTestController;
+		private System.Windows.Forms.ToolStripMenuItem tsmiApplySkinTheme;
 	}
 }
 

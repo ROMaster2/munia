@@ -1,5 +1,5 @@
 ﻿namespace MUNIA.Forms {
-	partial class GamepadTester {
+	partial class GamepadTesterForm {
 		/// <summary>
 		/// Required designer variable.
 		/// </summary>
@@ -23,7 +23,7 @@
 		/// the contents of this method with the code editor.
 		/// </summary>
 		private void InitializeComponent() {
-			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(GamepadTester));
+			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(GamepadTesterForm));
 			this.lbMuniaDevices = new System.Windows.Forms.ListBox();
 			this.label1 = new System.Windows.Forms.Label();
 			this.lblNSpyDevices = new System.Windows.Forms.Label();
@@ -36,7 +36,7 @@
 			this.btnTestGeneric = new System.Windows.Forms.Button();
 			this.gbDeviceSelection = new System.Windows.Forms.GroupBox();
 			this.pnlTest = new System.Windows.Forms.Panel();
-			this.statePainter = new MUNIA.Forms.ControllerStatePainter();
+			this.gamepadViewer = new MUNIA.Forms.GamepadViewerControl();
 			this.rtb = new MUNIA.Util.RichTextBoxEx();
 			this.gbDeviceSelection.SuspendLayout();
 			this.pnlTest.SuspendLayout();
@@ -49,6 +49,8 @@
 			this.lbMuniaDevices.Name = "lbMuniaDevices";
 			this.lbMuniaDevices.Size = new System.Drawing.Size(188, 95);
 			this.lbMuniaDevices.TabIndex = 0;
+			this.lbMuniaDevices.SelectedValueChanged += new System.EventHandler(this.UpdateUI);
+			this.lbMuniaDevices.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.lbMuniaDevices_MouseDoubleClick);
 			// 
 			// label1
 			// 
@@ -75,6 +77,8 @@
 			this.lbNintendoSpyDevices.Name = "lbNintendoSpyDevices";
 			this.lbNintendoSpyDevices.Size = new System.Drawing.Size(188, 95);
 			this.lbNintendoSpyDevices.TabIndex = 2;
+			this.lbNintendoSpyDevices.SelectedValueChanged += new System.EventHandler(this.UpdateUI);
+			this.lbNintendoSpyDevices.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.lbNintendoSpyDevices_MouseDoubleClick);
 			// 
 			// lblGenericGamepads
 			// 
@@ -92,6 +96,8 @@
 			this.lbGenericDevices.Name = "lbGenericDevices";
 			this.lbGenericDevices.Size = new System.Drawing.Size(188, 95);
 			this.lbGenericDevices.TabIndex = 4;
+			this.lbGenericDevices.SelectedValueChanged += new System.EventHandler(this.UpdateUI);
+			this.lbGenericDevices.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.lbGenericDevices_MouseDoubleClick);
 			// 
 			// btnConfigure
 			// 
@@ -158,7 +164,7 @@
 			this.pnlTest.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
             | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-			this.pnlTest.Controls.Add(this.statePainter);
+			this.pnlTest.Controls.Add(this.gamepadViewer);
 			this.pnlTest.Controls.Add(this.rtb);
 			this.pnlTest.Location = new System.Drawing.Point(12, 207);
 			this.pnlTest.Name = "pnlTest";
@@ -167,12 +173,15 @@
 			// 
 			// statePainter
 			// 
-			this.statePainter.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.statePainter.Location = new System.Drawing.Point(0, 70);
-			this.statePainter.Name = "statePainter";
-			this.statePainter.Size = new System.Drawing.Size(644, 161);
-			this.statePainter.TabIndex = 0;
-			this.statePainter.Text = "controllerStatePainter1";
+			this.gamepadViewer.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+			this.gamepadViewer.Location = new System.Drawing.Point(0, 76);
+			this.gamepadViewer.Name = "gamepadViewer";
+			this.gamepadViewer.Padding = new System.Windows.Forms.Padding(5);
+			this.gamepadViewer.Size = new System.Drawing.Size(644, 155);
+			this.gamepadViewer.TabIndex = 0;
+			this.gamepadViewer.Text = "controllerStatePainter1";
 			// 
 			// rtb
 			// 
@@ -183,7 +192,7 @@
 			this.rtb.TabIndex = 1;
 			this.rtb.Text = "";
 			// 
-			// GamepadTester
+			// GamepadTesterForm
 			// 
 			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
@@ -191,8 +200,9 @@
 			this.Controls.Add(this.pnlTest);
 			this.Controls.Add(this.gbDeviceSelection);
 			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-			this.Name = "GamepadTester";
+			this.Name = "GamepadTesterForm";
 			this.Text = "Gamepad tester";
+			this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.GamepadTesterForm_FormClosing);
 			this.gbDeviceSelection.ResumeLayout(false);
 			this.gbDeviceSelection.PerformLayout();
 			this.pnlTest.ResumeLayout(false);
@@ -214,7 +224,7 @@
 		private System.Windows.Forms.Button btnTestGeneric;
 		private System.Windows.Forms.GroupBox gbDeviceSelection;
 		private System.Windows.Forms.Panel pnlTest;
-		private ControllerStatePainter statePainter;
+		private GamepadViewerControl gamepadViewer;
 		private Util.RichTextBoxEx rtb;
 	}
 }
