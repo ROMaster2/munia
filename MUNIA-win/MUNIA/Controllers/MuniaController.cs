@@ -46,6 +46,29 @@ namespace MUNIA.Controllers
                 DateTime = DateTime.UtcNow;
                 AtomicDateTime = TimeStamp.CurrentDateTime;
                 Jitter = LogWatch.Elapsed - TimeSpan;
+                Inputs = new byte[5];
+            }
+            override public string ToString()
+            {
+                return TimeSpan.Ticks.ToString("x16").Substring(4) +
+                DateTime.Ticks.ToString("x16") +
+                AtomicDateTime.Time.Ticks.ToString("x16") +
+                (AtomicDateTime.SyncedWithAtomicClock ? "01" : "00") +
+                Jitter.Ticks.ToString("x16").Substring(8) +
+                Inputs[1].ToString("x2") +
+                Inputs[2].ToString("x2") +
+                Inputs[3].ToString("x2") +
+                Inputs[4].ToString("x2");
+            }
+            public byte[] M64()
+            {
+                return new byte[4]
+                {
+                    (byte)(Inputs[1] ^ 0b00001000),
+                    Inputs[2],
+                    (byte)(sbyte)(Inputs[3] - 128),
+                    (byte)(sbyte)-(Inputs[4] - 128)
+                };
             }
         }
 
@@ -198,28 +221,22 @@ namespace MUNIA.Controllers
                     if (Parse(sb.buffer))
                         StateUpdated?.Invoke(this, EventArgs.Empty);
                     sb.stream.BeginRead(sb.buffer, 0, sb.buffer.Length, Callback, sb);
-                    log.Inputs = (byte[])sb.buffer.Clone();
+                    sb.buffer.CopyTo(log.Inputs, 0);
                     InputLog.Add(log);
 
                     if (sb.buffer[1] == 4)
                     {
-                        var s = string.Empty;
                         var fuckyoumore = InputLog.ToArray();
-                        lock (fuckyoumore)
+                        using (var ts = new StringWriter())
+                        using (var bs = new BinaryWriter(File.Open(@"C:\inputLogRaw.txt", FileMode.Create)))
+                        {
                             foreach (var x in fuckyoumore)
                             {
-                                s += x.TimeSpan.Ticks.ToString() + '\t' +
-                                    x.DateTime.Ticks.ToString() + '\t' +
-                                    x.AtomicDateTime.Time.Ticks.ToString() + '\t' +
-                                    x.AtomicDateTime.SyncedWithAtomicClock.ToString() + '\t' +
-                                    x.Jitter.Ticks.ToString() + '\t';
-                                foreach (var b in x.Inputs)
-                                {
-                                    s += b.ToString() + '\t';
-                                }
-                                s += "\r\n";
+                                ts.WriteLine(x.ToString());
+                                bs.Write(x.M64());
                             }
-                        File.WriteAllText(@"C:\inputLog4.txt", s);
+                            File.WriteAllText(@"C:\inputLog.txt", ts.ToString());
+                        }
                     }
 
                 }
